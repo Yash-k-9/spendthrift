@@ -1,41 +1,53 @@
+/*
+ * Green & white theme. Colour theory:
+ *  - one base hue (emerald, ~155°) used monochromatically for brand, surfaces and borders
+ *    (white → mint tints, deep forest shades for text), so the UI reads as one calm "money green";
+ *  - analogous hues (teal ~175°, lime ~85°) only for variety in charts;
+ *  - the warm complement (coral/amber, ~10–40°) is reserved for warnings and overspending,
+ *    so alerts stand out against the cool greens.
+ */
 :root {
-  --bg: #f4f5f8;
+  --bg: #f3faf6;            /* mint-tinted white */
   --surface: #ffffff;
-  --surface-2: #f8f9fb;
-  --text: #1c2129;
-  --muted: #646d7a;
-  --border: #e3e6eb;
-  --primary: #4f46e5;
-  --primary-soft: #eef0fe;
+  --surface-2: #ecf7f1;
+  --text: #0f2a1e;          /* deep forest, not black */
+  --muted: #557567;
+  --border: #d3eadd;
+  --primary: #128a54;       /* emerald */
+  --primary-strong: #0b6b40;
+  --primary-soft: #e1f4ea;
+  --brand-gradient: linear-gradient(135deg, #0b6b40 0%, #16a065 55%, #3cc787 100%);
   --success: #15803d;
-  --success-soft: #e9f7ef;
+  --success-soft: #e6f6ec;
   --warning: #b45309;
-  --warning-soft: #fdf4e3;
-  --danger: #dc2626;
-  --danger-soft: #fdecec;
-  --info-soft: #eaf2fd;
-  --radius: 12px;
-  --shadow: 0 1px 2px rgba(16, 24, 40, .05);
+  --warning-soft: #fdf3e2;
+  --danger: #d4483b;        /* coral: complement of green */
+  --danger-soft: #fdecea;
+  --info-soft: #e8f6f0;
+  --radius: 14px;
+  --shadow: 0 1px 2px rgba(11, 61, 38, .06), 0 4px 14px rgba(11, 61, 38, .05);
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0f1216;
-    --surface: #181c22;
-    --surface-2: #1f242b;
-    --text: #e7e9ec;
-    --muted: #9aa3ae;
-    --border: #2b313a;
-    --primary: #818cf8;
-    --primary-soft: #252a4a;
+    --bg: #0a1711;          /* green-black */
+    --surface: #10221a;
+    --surface-2: #163024;
+    --text: #e6f4ec;        /* green-white */
+    --muted: #8fb3a2;
+    --border: #23402f;
+    --primary: #45d48f;     /* mint */
+    --primary-strong: #6fe3aa;
+    --primary-soft: #183a2a;
+    --brand-gradient: linear-gradient(135deg, #0e5a37 0%, #138a55 55%, #2fb878 100%);
     --success: #4ade80;
-    --success-soft: #16291e;
+    --success-soft: #133222;
     --warning: #fbbf24;
-    --warning-soft: #2e2512;
-    --danger: #f87171;
-    --danger-soft: #331a1a;
-    --info-soft: #172333;
+    --warning-soft: #2d2410;
+    --danger: #f2826f;
+    --danger-soft: #3a1e1a;
+    --info-soft: #132b20;
     --shadow: none;
     color-scheme: dark;
   }
@@ -55,6 +67,8 @@ h2 { font-size: 1.25rem; margin-top: 1.5rem; }
 h2:first-child { margin-top: 0; }
 h3 { font-size: 1.05rem; }
 p { margin: .25rem 0 .75rem; }
+a { color: var(--primary); }
+a:hover { color: var(--primary-strong); }
 code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-size: .9em; }
 .muted { color: var(--muted); font-size: .9rem; }
 
@@ -68,8 +82,15 @@ code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-
   display: flex; flex-direction: column; gap: 14px;
   position: sticky; top: 0; height: 100vh; overflow-y: auto;
 }
-.brand h1 { font-size: 1.35rem; margin: 0; }
-.brand p { margin: 2px 0 0; }
+.brand {
+  background: var(--brand-gradient);
+  color: #fff;
+  border-radius: var(--radius);
+  padding: 16px 16px 14px;
+  box-shadow: 0 6px 18px rgba(11, 107, 64, .25);
+}
+.brand h1 { font-family: "Playfair Display", Georgia, serif; font-size: 1.45rem; font-weight: 700; margin: 0; letter-spacing: .01em; }
+.brand p { margin: 4px 0 0; color: rgba(255, 255, 255, .85); font-size: .82rem; }
 
 .main { min-width: 0; padding: 0 24px 40px; }
 
@@ -86,11 +107,13 @@ code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-
   flex: none;
   font: inherit; font-size: .95rem;
   padding: 8px 14px;
-  border: none; border-bottom: 2px solid transparent;
+  border: none; border-bottom: 3px solid transparent;
+  border-radius: 10px 10px 0 0;
   background: none; color: var(--muted); cursor: pointer;
+  transition: color .15s, background-color .15s;
 }
-.tabs button:hover { color: var(--text); }
-.tabs button[aria-selected="true"] { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+.tabs button:hover { color: var(--primary-strong); background: var(--primary-soft); }
+.tabs button[aria-selected="true"] { color: var(--primary-strong); border-bottom-color: var(--primary); background: var(--primary-soft); font-weight: 600; }
 
 .view { min-height: 60vh; }
 
@@ -114,6 +137,7 @@ code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-
   min-width: 0;
 }
 
+.card.metric { border-top: 3px solid var(--primary); }
 .metric .label { color: var(--muted); font-size: .85rem; }
 .metric .value { font-size: 1.6rem; font-weight: 650; letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
 .metric .delta { font-size: .85rem; color: var(--muted); }
@@ -121,9 +145,9 @@ code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-
 .delta.down { color: var(--danger); }
 
 .panel { border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; background: var(--surface-2); }
-.panel summary { cursor: pointer; font-weight: 600; padding: 2px 0; }
+.panel summary { cursor: pointer; font-weight: 600; padding: 2px 0; color: var(--primary-strong); }
 .panel[open] summary { margin-bottom: 10px; }
-.note { font-size: .85rem; color: var(--muted); background: var(--info-soft); padding: 10px 12px; border-radius: 10px; margin-top: auto; }
+.note { font-size: .85rem; color: var(--muted); background: var(--info-soft); border: 1px solid var(--border); padding: 10px 12px; border-radius: 10px; margin-top: auto; }
 
 .alert { padding: 10px 14px; border-radius: 10px; margin: 8px 0; border-left: 4px solid; }
 .alert.info { background: var(--info-soft); border-color: var(--primary); }
@@ -157,14 +181,16 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--primary); o
   border-radius: 8px; border: 1px solid var(--primary);
   background: var(--primary); color: #fff; cursor: pointer;
 }
-.btn:hover { filter: brightness(1.08); }
+.btn { transition: background-color .15s, filter .15s, box-shadow .15s; }
+.btn:hover { filter: brightness(1.08); box-shadow: 0 2px 8px rgba(11, 107, 64, .2); }
 .btn:disabled { opacity: .55; cursor: not-allowed; }
-.btn.secondary { background: var(--surface); color: var(--text); border-color: var(--border); }
+.btn.secondary { background: var(--surface); color: var(--primary-strong); border-color: var(--border); }
+.btn.secondary:hover { background: var(--primary-soft); filter: none; }
 .btn.danger { background: var(--danger); border-color: var(--danger); }
 .btn.danger-outline { background: var(--surface); color: var(--danger); border-color: var(--border); }
 .btn.small { padding: 4px 10px; font-size: .85rem; }
 .btn.full { width: 100%; }
-@media (prefers-color-scheme: dark) { .btn:not(.secondary):not(.danger-outline) { color: #0f1216; } }
+@media (prefers-color-scheme: dark) { .btn:not(.secondary):not(.danger-outline) { color: #06140d; } }
 
 /* ---------------------------------------------------------------- tables */
 .table-wrap { overflow: auto; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }

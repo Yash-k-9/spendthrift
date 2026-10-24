@@ -122,9 +122,9 @@ export function mounted() {
     plot("chart-ll", [{ type: "histogram", x: d.em.log_likelihoods, nbinsx: 40 }], {
       ...small, title: { text: "Likelihood of every expense" }, xaxis: { title: { text: "log-likelihood" } },
       shapes: [{ type: "line", x0: d.em.threshold, x1: d.em.threshold, yref: "paper", y0: 0, y1: 1,
-                 line: { dash: "dash", color: "#ef4444" } }],
+                 line: { dash: "dash", color: "#e8705f" } }],
       annotations: [{ x: d.em.threshold, yref: "paper", y: 1, text: "anomaly threshold", showarrow: false,
-                      xanchor: "left", font: { color: "#ef4444" } }],
+                      xanchor: "left", font: { color: "#e8705f" } }],
     });
   }
 
