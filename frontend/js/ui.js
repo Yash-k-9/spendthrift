@@ -80,8 +80,10 @@ export function errorText(err) {
 }
 
 // ---------------------------------------------------------------- charts (Plotly)
-const PALETTE = ["#4f46e5", "#f59e0b", "#10b981", "#ef4444", "#06b6d4", "#a855f7", "#ec4899", "#84cc16",
-                 "#64748b", "#f97316"];
+// Greens first (emerald, lime, teal: analogous), with the warm complement (amber, coral) mixed in
+// so neighbouring slices and series stay easy to tell apart.
+const PALETTE = ["#128a54", "#9bd34a", "#0f766e", "#f2a93b", "#4fd1a0", "#0b4f33", "#2bb5a8", "#6aa84f",
+                 "#e8705f", "#b7e4c7"];
 
 function chartTheme() {
   const css = getComputedStyle(document.documentElement);
