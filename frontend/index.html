@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Family Budget Planner</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js" defer></script>
+  <script type="module" src="js/main.js"></script>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <h1>💰 Family Budget</h1>
+        <p class="muted">AI-based budget planner for savings · SDG 8 &amp; SDG 12</p>
+      </div>
+
+      <label class="field">
+        <span>Month</span>
+        <select id="month-select"></select>
+      </label>
+
+      <details class="panel">
+        <summary>⚙️ Settings</summary>
+        <form id="settings-form" class="stack">
+          <label class="field"><span>Currency symbol</span>
+            <input name="currency" maxlength="4" required></label>
+          <label class="field"><span>Savings goal (% of income): <b id="goal-value"></b></span>
+            <input name="savings_goal_pct" type="range" min="5" max="60"></label>
+          <label class="field"><span>Family members</span>
+            <input name="family_size" type="number" min="1" max="20" required></label>
+          <button type="submit" class="btn full">Save settings</button>
+        </form>
+      </details>
+
+      <details class="panel">
+        <summary>🗂️ Data</summary>
+        <div class="stack">
+          <button id="load-demo" class="btn secondary full">Load 6-month demo family</button>
+          <button id="clear-all" class="btn danger-outline full">Delete all transactions</button>
+        </div>
+      </details>
+
+      <p class="note">🔒 All AI runs on this computer: six ML algorithms written from scratch. No API key needed.</p>
+    </aside>
+
+    <main class="main">
+      <nav class="tabs" id="tabs" role="tablist">
+        <button data-tab="dashboard" role="tab">📊 Dashboard</button>
+        <button data-tab="insights" role="tab">🔍 Insights</button>
+        <button data-tab="predictions" role="tab">🔮 Predictions</button>
+        <button data-tab="patterns" role="tab">🧩 Patterns</button>
+        <button data-tab="budgets" role="tab">🎯 Budgets</button>
+        <button data-tab="add" role="tab">➕ Add / Import</button>
+        <button data-tab="transactions" role="tab">📋 Transactions</button>
+        <button data-tab="models" role="tab">🧠 Models</button>
+      </nav>
+      <section id="view" class="view" aria-live="polite"></section>
+    </main>
+  </div>
+
+  <div id="toasts" class="toasts"></div>
+</body>
+</html>
