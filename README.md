@@ -59,7 +59,7 @@ baselines in back-testing.
 | ID3 | Flags the month's frequent food-delivery and café orders as unnecessary ("want → purchases are frequent") |
 | Genetic Algorithm | Reaches the savings target without touching rent, EMIs, insurance, school fees or healthcare |
 
-The 🧠 Models tab in the app shows these numbers live: accuracy against *k*, back-test error against τ,
+The 🧠 Models tab in the web app shows these numbers live: accuracy against *k*, back-test error against τ,
 the learned tree rules, the elbow curve, EM convergence and GA convergence.
 
 ## App tabs
@@ -77,11 +77,22 @@ the learned tree rules, the elbow curve, EM convergence and GA convergence.
   (the decision tree learns).
 - **🧠 Models:** how each algorithm works, with evaluation charts.
 
+## Architecture
+
+```
+Browser (HTML / CSS / JS)  ──fetch JSON──►  FastAPI (api/main.py)  ──►  budget/ (ML)  ──►  PostgreSQL
+frontend/                                   /api/*  +  serves frontend/              budget/storage.py
+```
+
 ## Project structure
 
 ```
 family_budget/
-├── app.py                  Streamlit UI
+├── api/main.py             FastAPI backend: JSON API under /api, serves the frontend at /
+├── frontend/               Plain HTML, CSS and JavaScript (no build step)
+│   ├── index.html
+│   ├── css/style.css
+│   └── js/                 main.js (shell), api.js, ui.js, tabs/*.js (one file per tab)
 ├── budget/
 │   ├── ml/                 The six algorithms, from scratch (NumPy only)
 │   │   ├── knn.py  text.py  lwr.py  id3.py  kmeans.py  gmm_em.py  genetic.py
@@ -93,23 +104,48 @@ family_budget/
 │   ├── planner.py          Genetic-algorithm savings plan
 │   ├── analyzer.py         Plain statistics: summaries, trends, alerts
 │   ├── training_data.py    Built-in labelled data (k-NN phrases, ID3 expert examples)
-│   ├── storage.py          SQLite storage
+│   ├── storage.py          PostgreSQL storage (SQLAlchemy)
 │   └── sample_data.py      6-month demo family
-├── tests/test_budget.py    26 tests (algorithms + features)
+├── scripts/migrate_sqlite.py  Copy the old SQLite data/budget.db into PostgreSQL
+├── tests/                  test_budget.py (algorithms) + test_api.py (API)
+├── docker-compose.yml      Optional PostgreSQL in Docker
+├── .env.example            DATABASE_URL template
 ├── sample_statement.csv    Example bank statement for the importer
 └── requirements.txt
 ```
 
 ## Setup and run
 
-```bash
-pip install -r requirements.txt
-streamlit run app.py
-```
+1. Install the Python packages:
 
-Open http://localhost:8501. In the sidebar, open **🗂️ Data → Load 6-month demo family**.
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-Run the tests:
+2. Point the app at PostgreSQL. Copy `.env.example` to `.env` and set your password:
+
+   ```
+   DATABASE_URL=postgresql+psycopg://postgres:YOUR_PASSWORD@localhost:5432/family_budget
+   ```
+
+   The `family_budget` database and its tables are created automatically on first start.
+   No local PostgreSQL? Run `docker compose up -d` and use
+   `postgresql+psycopg://postgres:postgres@localhost:5433/family_budget`.
+
+3. Start the server:
+
+   ```bash
+   uvicorn api.main:app --reload
+   ```
+
+   Open http://localhost:8000. In the sidebar, open **🗂️ Data → Load 6-month demo family**.
+   Interactive API docs are at http://localhost:8000/docs.
+
+To bring over data from the old SQLite version: `python scripts/migrate_sqlite.py`.
+
+Charts use Plotly.js, loaded from jsDelivr. All the machine learning still runs locally.
+
+Run the tests (they use a temporary SQLite file, so no PostgreSQL is needed):
 
 ```bash
 python -m pytest -q
