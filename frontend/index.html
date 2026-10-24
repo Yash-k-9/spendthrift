@@ -9,11 +9,38 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Great+Vibes&display=block">
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/splash.css">
+  <script src="js/splash.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js" defer></script>
   <script type="module" src="js/main.js"></script>
 </head>
 <body>
+  <!-- Intro animation (see css/splash.css); removed from the page when it ends -->
+  <div id="splash" class="splash" role="presentation" title="Click to skip">
+    <div class="splash-stage">
+      <div class="note-shadow"></div>
+      <div class="note-drop">
+        <div class="note">
+          <div class="note-half note-top"><div class="note-face"></div></div>
+          <div class="note-half note-bottom"><div class="note-face"></div><div class="note-back"></div></div>
+          <div class="note-print">
+            <span class="note-corner tl">₹</span>
+            <span class="note-corner br">₹</span>
+            <span class="note-seal">₹</span>
+            <div class="note-text">
+              <span class="note-title">Planner</span>
+              <span class="note-sub">Family Budget</span>
+            </div>
+          </div>
+        </div>
+        <div class="note-tube"></div>
+      </div>
+    </div>
+    <p class="splash-skip">Click anywhere to skip</p>
+  </div>
+
   <div class="layout">
     <aside class="sidebar" id="sidebar">
       <div class="brand">

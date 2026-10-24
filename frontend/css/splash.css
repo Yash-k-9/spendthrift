@@ -1,0 +1,208 @@
+/*
+ * Intro animation (≈4.4 s, click or press a key to skip):
+ *   1. a folded banknote falls in and bounces        0.0 – 1.0 s
+ *   2. it unfolds (bottom half swings down)          1.0 – 1.7 s
+ *   3. "Planner" is written across it                1.6 – 2.6 s
+ *   4. it rolls up from the bottom into a tube       3.1 – 3.7 s
+ *   5. the tube falls away and the page appears      3.7 – 4.4 s
+ * Each step animates a different element, so their transforms never fight.
+ */
+
+.splash {
+  --note-w: min(460px, 84vw);
+  --note-h: calc(var(--note-w) * 0.48);
+  position: fixed; inset: 0; z-index: 100;
+  display: grid; place-items: center;
+  background: radial-gradient(ellipse at 50% 42%, #ffffff 0%, #f1faf5 45%, #d8f0e3 100%);
+  overflow: hidden;
+  cursor: pointer;
+  animation: splash-out .5s ease 4s forwards;
+}
+@media (prefers-color-scheme: dark) {
+  .splash { background: radial-gradient(ellipse at 50% 42%, #173a29 0%, #0e2219 50%, #08130e 100%); }
+}
+
+.splash-stage { position: relative; width: var(--note-w); height: var(--note-h); }
+
+/* ---- 1 & 5: fall in, then fall away */
+.note-drop {
+  position: absolute; inset: 0;
+  animation:
+    note-fall-in 1s cubic-bezier(.33, .9, .45, 1) both,
+    note-fall-out .7s cubic-bezier(.55, 0, .85, .35) 3.7s forwards;
+}
+
+/* soft ground shadow that grows as the note lands */
+.note-shadow {
+  position: absolute; left: 10%; right: 10%; bottom: -34px; height: 22px;
+  background: radial-gradient(ellipse, rgba(11, 61, 38, .28), transparent 70%);
+  animation: shadow-in 1s ease-out both, fade-away .4s ease-in 3.7s forwards;
+}
+
+/* ---- the note itself */
+.note {
+  position: absolute; inset: 0;
+  perspective: 1100px;
+  /* 4: roll up - the bottom edge is clipped away while the tube travels up */
+  animation: note-roll .6s cubic-bezier(.45, 0, .6, 1) 3.1s forwards;
+}
+
+.note-half {
+  position: absolute; left: 0; right: 0; height: 50%;
+  transform-style: preserve-3d;
+}
+.note-top { top: 0; }
+.note-bottom {
+  top: 50%;
+  transform-origin: top center;
+  /* 2: folded up over the top half, then swings down to open */
+  animation: note-unfold .75s cubic-bezier(.25, 1.35, .5, 1) 1s both;
+}
+
+/* Both halves share one continuous face: each shows its half of a double-height background. */
+.note-face, .note-back {
+  position: absolute; inset: 0;
+  backface-visibility: hidden;
+  background:
+    radial-gradient(circle at 82% 50%, rgba(255, 255, 255, .22) 0 11%, transparent 11.5%),
+    radial-gradient(circle at 82% 50%, transparent 0 14%, rgba(255, 255, 255, .18) 14.5% 15.5%, transparent 16%),
+    repeating-radial-gradient(circle at 18% 50%, rgba(255, 255, 255, .07) 0 2px, transparent 2px 9px),
+    repeating-linear-gradient(115deg, rgba(255, 255, 255, .05) 0 1px, transparent 1px 7px),
+    linear-gradient(135deg, #0b5d38 0%, #128a54 48%, #2fae6d 100%);
+  background-size: 100% 200%;
+}
+.note-top .note-face { background-position: top; border-radius: 10px 10px 0 0; }
+.note-bottom .note-face { background-position: bottom; border-radius: 0 0 10px 10px; }
+.note-back {
+  transform: rotateX(180deg);
+  border-radius: 10px 10px 0 0;
+  background:
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, .08) 0 2px, transparent 2px 10px),
+    repeating-linear-gradient(-45deg, rgba(255, 255, 255, .06) 0 2px, transparent 2px 10px),
+    linear-gradient(160deg, #0e6a41, #0a4d2f);
+  box-shadow: inset 0 -10px 18px rgba(0, 0, 0, .18);
+}
+.note-top { box-shadow: 0 18px 40px rgba(6, 44, 27, .25); border-radius: 10px 10px 0 0; }
+
+/* the printed details: frame, corner values, seal and title appear once it's open */
+.note-print {
+  position: absolute; inset: 0; pointer-events: none; z-index: 2;
+  border-radius: 10px;
+  animation: fade-in .5s ease 1.55s both;
+}
+.note-print::before {   /* cream inner frame */
+  content: ""; position: absolute; inset: 9px;
+  border: 1.5px solid rgba(255, 248, 225, .65);
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 4px rgba(255, 248, 225, .12);
+}
+.note-corner {
+  position: absolute; color: #fff8e1;
+  font: 700 clamp(14px, 2.6vw, 20px)/1 "Playfair Display", Georgia, serif;
+  opacity: .9;
+}
+.note-corner.tl { top: 18px; left: 20px; }
+.note-corner.br { bottom: 18px; right: 20px; }
+.note-seal {
+  position: absolute; top: 50%; left: 82%;
+  width: calc(var(--note-h) * .2); aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  display: grid; place-items: center;
+  border-radius: 50%;
+  color: #0b5d38; background: #fff8e1;
+  font: 700 calc(var(--note-h) * .1)/1 "Playfair Display", Georgia, serif;
+  box-shadow: 0 0 0 3px rgba(255, 248, 225, .35);
+}
+
+.note-text {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding-right: 14%;   /* keep clear of the seal */
+  color: #fffbea; text-align: center;
+}
+.note-title {
+  font: 400 calc(var(--note-h) * .42)/1 "Great Vibes", "Brush Script MT", cursive;
+  text-shadow: 0 2px 0 rgba(6, 44, 27, .35), 0 0 18px rgba(255, 248, 225, .25);
+  padding: 0 .15em;
+  /* 3: "written" left to right */
+  animation: write-in 1s cubic-bezier(.5, 0, .3, 1) 1.6s both;
+}
+.note-sub {
+  margin-top: .35em;
+  font: 600 calc(var(--note-h) * .065)/1 "Playfair Display", Georgia, serif;
+  letter-spacing: .35em; text-transform: uppercase;
+  opacity: .9;
+  animation: rise-in .6s ease 2.3s both;
+}
+
+/* the rolled-up tube that travels from the bottom edge to the top */
+.note-tube {
+  position: absolute; left: -2%; right: -2%; top: 100%;
+  height: calc(var(--note-h) * .13);
+  transform: translateY(-50%);
+  border-radius: 999px;
+  background: linear-gradient(180deg, #2fae6d 0%, #7fdcaa 22%, #128a54 50%, #0b5d38 78%, #08432a 100%);
+  box-shadow: 0 6px 14px rgba(6, 44, 27, .3);
+  opacity: 0;
+  animation: tube-roll .6s cubic-bezier(.45, 0, .6, 1) 3.1s forwards;
+}
+
+.splash-skip {
+  position: absolute; bottom: 24px; left: 0; right: 0;
+  margin: 0; text-align: center;
+  font-size: .8rem; color: var(--muted);
+  animation: fade-in .4s ease 1.2s both;
+}
+
+/* skipping: fade the whole thing out quickly */
+.splash.splash-hide { animation: splash-out .3s ease forwards; }
+
+/* ---------------------------------------------------------------- keyframes */
+@keyframes note-fall-in {
+  0%   { transform: translateY(-120vh) rotate(-16deg); }
+  55%  { transform: translateY(12px) rotate(4deg); }
+  70%  { transform: translateY(-16px) rotate(-2deg); }
+  85%  { transform: translateY(4px) rotate(.8deg); }
+  100% { transform: translateY(0) rotate(0); }
+}
+@keyframes note-fall-out {
+  0%   { transform: translateY(0) rotate(0); }
+  20%  { transform: translateY(-14px) rotate(-3deg); }
+  100% { transform: translateY(120vh) rotate(24deg); }
+}
+@keyframes shadow-in {
+  0%, 40% { opacity: 0; transform: scaleX(.3); }
+  100%    { opacity: 1; transform: scaleX(1); }
+}
+@keyframes note-unfold {
+  from { transform: rotateX(180deg); }
+  to   { transform: rotateX(0deg); }
+}
+@keyframes write-in {
+  from { clip-path: inset(-20% 100% -20% 0); }
+  to   { clip-path: inset(-20% 0 -20% 0); }
+}
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: .9; transform: translateY(0); }
+}
+@keyframes note-roll {
+  from { clip-path: inset(0 0 0 0); }
+  to   { clip-path: inset(0 0 100% 0); }
+}
+@keyframes tube-roll {
+  0%   { top: 100%; opacity: 1; }
+  100% { top: 0%; opacity: 1; }
+}
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fade-away { to { opacity: 0; } }
+@keyframes splash-out { to { opacity: 0; visibility: hidden; } }
+
+/* Respect "reduce motion": show the open note briefly, then fade. */
+@media (prefers-reduced-motion: reduce) {
+  .splash { animation: splash-out .4s ease 1.4s forwards; }
+  .note-drop, .note-shadow, .note, .note-bottom, .note-print, .note-title, .note-sub, .note-tube, .splash-skip {
+    animation: none;
+  }
+  .note-tube { display: none; }
+}
