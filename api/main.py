@@ -26,7 +26,8 @@ from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from budget import analyzer, anomalies, categorizer, forecaster, necessity, patterns, planner, sample_data, sms, sms_demo
+from budget import (analyzer, anomalies, categorizer, forecaster, goals, necessity, patterns, planner, sample_data,
+                    sms, sms_demo)
 from budget.categorizer import ALL_CATEGORIES, EXPENSE_CATEGORIES, INCOME_CATEGORIES, KNNCategorizer
 from budget.storage import ENV_FILE, BudgetStore, DuplicateTransaction, load_dotenv
 
@@ -510,6 +511,87 @@ def models(store: BudgetStore = Depends(get_store)):
                      "log_likelihoods": [float(v) for v in anomaly["all"]["log_likelihood"]],
                      "threshold": anomaly["threshold"]}
     return out
+
+
+# ---------------------------------------------------------------- spending plans, alerts & rewards
+class PlanItem(BaseModel):
+    category: str
+    amount: float = Field(ge=0)
+    note: str = Field("", max_length=120)
+
+
+class PlanIn(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    start_date: Date
+    end_date: Date
+    target_total: float = Field(ge=0)
+    items: list[PlanItem] = []
+
+
+def _check_plan(plan: PlanIn):
+    if plan.end_date < plan.start_date:
+        raise HTTPException(400, "The end date must be on or after the start date.")
+    for item in plan.items:
+        if item.category not in EXPENSE_CATEGORIES:
+            raise HTTPException(400, f"Unknown category: {item.category}")
+    if len({i.category for i in plan.items}) != len(plan.items):
+        raise HTTPException(400, "Each category can appear only once in a plan.")
+
+
+@app.get("/api/plans")
+def list_plans(store: BudgetStore = Depends(get_store)):
+    df = store.transactions()
+    return [goals.plan_progress(df, p) for p in store.plans()]
+
+
+@app.get("/api/plans/suggest", summary="Suggested planned amounts for a period, from recent spending")
+def suggest_plan(start_date: Date, end_date: Date, store: BudgetStore = Depends(get_store)):
+    df = store.transactions()
+    if df.empty:
+        return {"items": [], "target_total": 0}
+    scale = ((end_date - start_date).days + 1) / 30.4
+    monthly = analyzer.suggest_budgets(df, analyzer.months(df)[0])
+    items = [{"category": c, "amount": float(round(v * scale / 100) * 100), "note": ""}
+             for c, v in sorted(monthly.items(), key=lambda kv: -kv[1])
+             if c in EXPENSE_CATEGORIES and c != analyzer.SAVINGS_CATEGORY and v * scale >= 100]
+    return {"items": items, "target_total": float(sum(i["amount"] for i in items))}
+
+
+@app.post("/api/plans", status_code=201)
+def create_plan(plan: PlanIn, store: BudgetStore = Depends(get_store)):
+    _check_plan(plan)
+    plan_id = store.save_plan(plan.name, plan.start_date, plan.end_date, plan.target_total,
+                              [i.model_dump() for i in plan.items])
+    return goals.plan_progress(store.transactions(), store.plan(plan_id))
+
+
+@app.put("/api/plans/{plan_id}")
+def update_plan(plan_id: int, plan: PlanIn, store: BudgetStore = Depends(get_store)):
+    _check_plan(plan)
+    try:
+        store.save_plan(plan.name, plan.start_date, plan.end_date, plan.target_total,
+                        [i.model_dump() for i in plan.items], plan_id=plan_id)
+    except KeyError:
+        raise HTTPException(404, "Plan not found")
+    return goals.plan_progress(store.transactions(), store.plan(plan_id))
+
+
+@app.delete("/api/plans/{plan_id}")
+def delete_plan(plan_id: int, store: BudgetStore = Depends(get_store)):
+    if not store.delete_plan(plan_id):
+        raise HTTPException(404, "Plan not found")
+    return {"ok": True}
+
+
+@app.get("/api/alerts", summary="Over-target warnings for active plans and this month's budgets")
+def get_alerts(store: BudgetStore = Depends(get_store)):
+    return {"alerts": goals.alerts(store.transactions(), store.plans(), store.budgets(),
+                                   currency=store.get_setting("currency"))}
+
+
+@app.get("/api/rewards", summary="Points, level, streaks, badges and the family leaderboard")
+def get_rewards(store: BudgetStore = Depends(get_store)):
+    return goals.rewards(store.transactions(), store.plans(), store.budgets(), goal_of(store))
 
 
 # ---------------------------------------------------------------- SMS capture
