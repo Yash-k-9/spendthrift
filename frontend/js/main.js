@@ -11,8 +11,10 @@ import * as add from "./tabs/add.js";
 import * as transactions from "./tabs/transactions.js";
 import * as models from "./tabs/models.js";
 import * as sms from "./tabs/sms.js";
+import * as goals from "./tabs/goals.js";
+import { checkAlerts, startAlertWatcher } from "./notify.js";
 
-const TABS = { dashboard, insights, predictions, patterns, budgets, add, transactions, sms, models };
+const TABS = { dashboard, insights, predictions, patterns, budgets, goals, add, transactions, sms, models };
 const NEEDS_DATA = new Set(["dashboard", "insights", "predictions", "patterns", "budgets"]);
 
 const view = document.getElementById("view");
@@ -70,6 +72,7 @@ async function render() {
 /** Reload months/settings from the server and redraw the current tab (unless keepView). */
 async function refresh({ keepView = false } = {}) {
   await loadMeta();
+  checkAlerts();   // data may have changed: announce any newly crossed targets
   if (!keepView) await render();
 }
 
@@ -129,6 +132,7 @@ for (const btn of document.querySelectorAll("#tabs button")) {
 }
 window.addEventListener("hashchange", render);
 
+startAlertWatcher();
 refresh().catch((err) => {
   view.innerHTML = `<div class="alert error">Couldn't reach the backend: ${esc(errorText(err))}</div>`;
 });

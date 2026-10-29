@@ -77,6 +77,29 @@ the learned tree rules, the elbow curve, EM convergence and GA convergence.
   (the decision tree learns).
 - **🧠 Models:** how each algorithm works, with evaluation charts.
 
+## 🏆 Goals & Rewards
+
+- **Spending plans:** decide what you'll spend in any period (this week, next month, a trip). Set a total target
+  plus planned amounts per category, or click *Fill from my recent spending* to start from your averages.
+  Each plan shows spent vs planned, unplanned spending, and where you'll end up at the current pace.
+- **Reminders:** at 80% and 100% of a plan or a planned category, when a monthly budget is exceeded, or when the
+  pace means you'll overspend. They appear as in-app toasts and, once you click *Turn on notifications*, as
+  desktop/phone notifications while the app is open. Each alert is shown once.
+- **Reward points (a game):**
+
+  | Points | For |
+  |---|---|
+  | +10 | each clean day: no unnecessary expense (no-spend days count too) |
+  | +30 | every 7-day clean streak |
+  | −1 per 250 spent | each unnecessary expense (min −1, max −10) |
+  | +100 / −50 | a finished plan kept within / over its total |
+  | +10 | each planned category kept within its amount |
+  | +75 | a month that meets the savings goal |
+
+  "Unnecessary" comes from the ID3 tree, or your own label in 📋 Transactions, which always wins. Points build
+  up through levels (🌱 Seedling → 👑 Budget Master), unlock badges, and feed a family leaderboard ranked by
+  each member's share of unnecessary spending. Points are recalculated from your data, so they always match it.
+
 ## 🔒 Encrypted transaction ledger
 
 Every transaction (manual, CSV, demo or SMS) is stored encrypted and tamper-evident:
@@ -142,10 +165,11 @@ family_budget/
 │   ├── crypto.py           AES-256-GCM, SHA-256 chain, Ed25519, HMAC
 │   ├── sms.py              Bank SMS parser
 │   ├── sms_demo.py         Realistic fake bank SMS for demo mode
+│   ├── goals.py            Spending plans, alerts and reward points
 │   └── sample_data.py      6-month demo family
 ├── scripts/migrate_sqlite.py  Copy the old SQLite data/budget.db into PostgreSQL
 ├── scripts/encrypt_legacy.py  Encrypt transactions left in the old plaintext table
-├── tests/                  algorithms, API, and security/SMS tests
+├── tests/                  algorithms, API, security/SMS, and goals tests
 ├── docker-compose.yml      Optional PostgreSQL in Docker
 ├── .env.example            DATABASE_URL template
 ├── sample_statement.csv    Example bank statement for the importer
