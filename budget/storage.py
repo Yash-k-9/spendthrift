@@ -20,6 +20,7 @@ Deleting a transaction erases its ciphertext but keeps its hashes, so the
 chain still verifies ("redaction").
 """
 
+import json
 import os
 import threading
 from datetime import datetime, timezone
@@ -65,6 +66,17 @@ budgets_table = Table(
     Column("category", String(64), primary_key=True),
     Column("monthly_limit", Float, nullable=False),
     CheckConstraint("monthly_limit >= 0", name="ck_limit_nonnegative"),
+)
+plans_table = Table(
+    "plans", metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("name", String(80), nullable=False),
+    Column("start_date", String(10), nullable=False),        # YYYY-MM-DD, inclusive
+    Column("end_date", String(10), nullable=False),          # YYYY-MM-DD, inclusive
+    Column("target_total", Float, nullable=False),           # spending ceiling for the whole period
+    Column("items", Text, nullable=False, default="[]"),     # JSON: [{"category", "amount", "note"}] planned expenses
+    Column("created_at", String(32), nullable=False),
+    CheckConstraint("target_total >= 0", name="ck_plan_target_nonnegative"),
 )
 settings_table = Table(
     "settings", metadata,
@@ -353,6 +365,38 @@ class BudgetStore:
     def budgets(self) -> dict[str, float]:
         with self.engine.connect() as conn:
             return {r.category: r.monthly_limit for r in conn.execute(select(budgets_table))}
+
+    # ---- spending plans -----------------------------------------------
+    @staticmethod
+    def _plan_row(r) -> dict:
+        return {"id": r.id, "name": r.name, "start_date": r.start_date, "end_date": r.end_date,
+                "target_total": r.target_total, "items": json.loads(r.items or "[]"), "created_at": r.created_at}
+
+    def plans(self) -> list[dict]:
+        with self.engine.connect() as conn:
+            rows = conn.execute(select(plans_table).order_by(plans_table.c.start_date.desc(), plans_table.c.id.desc()))
+            return [self._plan_row(r) for r in rows]
+
+    def plan(self, plan_id: int) -> dict | None:
+        with self.engine.connect() as conn:
+            r = conn.execute(select(plans_table).where(plans_table.c.id == plan_id)).first()
+        return self._plan_row(r) if r else None
+
+    def save_plan(self, name: str, start_date, end_date, target_total: float, items: list[dict],
+                  plan_id: int | None = None) -> int:
+        values = {"name": name.strip(), "start_date": str(start_date), "end_date": str(end_date),
+                  "target_total": float(target_total), "items": json.dumps(items)}
+        with self.engine.begin() as conn:
+            if plan_id is None:
+                values["created_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+                return conn.execute(plans_table.insert().returning(plans_table.c.id), values).scalar_one()
+            if conn.execute(plans_table.update().where(plans_table.c.id == plan_id).values(**values)).rowcount == 0:
+                raise KeyError(plan_id)
+            return plan_id
+
+    def delete_plan(self, plan_id: int) -> bool:
+        with self.engine.begin() as conn:
+            return conn.execute(plans_table.delete().where(plans_table.c.id == plan_id)).rowcount > 0
 
     # ---- settings -----------------------------------------------------
     def get_setting(self, key: str) -> str:
