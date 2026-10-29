@@ -22,13 +22,8 @@ def main(sqlite_path: Path):
     store = BudgetStore()
 
     rows = [dict(r) for r in src.execute("SELECT * FROM transactions ORDER BY id")]
-    store.add_many(rows)
+    store.add_many(rows)   # encrypted, chained and signed; keeps categories and necessity labels
     labelled = [r for r in rows if r.get("necessity")]
-    if labelled:  # add_many doesn't carry labels; match them up by the new ids
-        new = store.transactions().sort_values("id").tail(len(rows))
-        for (_, n), r in zip(new.iterrows(), rows):
-            if r.get("necessity"):
-                store.set_necessity(int(n["id"]), r["necessity"])
     for r in src.execute("SELECT * FROM budgets"):
         store.set_budget(r["category"], r["monthly_limit"])
     for r in src.execute("SELECT * FROM settings"):

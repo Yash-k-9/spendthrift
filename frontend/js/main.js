@@ -10,8 +10,9 @@ import * as budgets from "./tabs/budgets.js";
 import * as add from "./tabs/add.js";
 import * as transactions from "./tabs/transactions.js";
 import * as models from "./tabs/models.js";
+import * as sms from "./tabs/sms.js";
 
-const TABS = { dashboard, insights, predictions, patterns, budgets, add, transactions, models };
+const TABS = { dashboard, insights, predictions, patterns, budgets, add, transactions, sms, models };
 const NEEDS_DATA = new Set(["dashboard", "insights", "predictions", "patterns", "budgets"]);
 
 const view = document.getElementById("view");

@@ -77,6 +77,40 @@ the learned tree rules, the elbow curve, EM convergence and GA convergence.
   (the decision tree learns).
 - **🧠 Models:** how each algorithm works, with evaluation charts.
 
+## 🔒 Encrypted transaction ledger
+
+Every transaction (manual, CSV, demo or SMS) is stored encrypted and tamper-evident:
+
+| Layer | What it does |
+|---|---|
+| **AES-256-GCM** | All transaction details are one encrypted column; a fresh random nonce per record. Changing any byte makes decryption fail. |
+| **SHA-256 hash chain** | `record_hash = SHA-256(prev_hash, content_hash, key_version)`, so editing, deleting or reordering a past row breaks every later hash. |
+| **Ed25519 signature** | Each `record_hash` is signed, so the chain can't be rebuilt without the private key. |
+| **HMAC-SHA256** | Detects duplicate SMS without storing anything readable. |
+
+Category and Reasonable/Unnecessary labels are encrypted separately and bound to their row, so they can be
+edited without breaking the chain. Deleting a transaction erases its details but keeps its hashes, so the chain
+still verifies. The **📱 SMS & Security** tab has a *Verify integrity* button and shows a raw database row next to
+its decrypted form.
+
+**Keys** (`LEDGER_KEY`, `LEDGER_SIGNING_KEY`) are generated into `.env` on first start and never stored in the
+database. **Back up `.env`**: without it the transactions can't be decrypted.
+
+Upgrading from the unencrypted version? Run `python scripts/encrypt_legacy.py` to move the old `transactions`
+table into the ledger and drop the plaintext copy.
+
+## 📱 Bank SMS capture
+
+`POST /api/sms` takes `{"sender": "VM-HDFCBK", "body": "<sms text>"}` with header `X-SMS-Token: <SMS_TOKEN from .env>`.
+The SMS is parsed (HDFC, SBI, ICICI, Axis, Kotak and similar formats), categorized by k-NN, encrypted and stored.
+OTP and promotional messages are rejected, and duplicates are ignored.
+
+- **Demo mode:** in the **📱 SMS & Security** tab, *Simulate bank SMS* runs realistic messages through the same pipeline.
+- **Real phone (same Wi-Fi):** start the server with `uvicorn api.main:app --host 0.0.0.0 --port 8000`. The tab
+  shows your Network URL (e.g. `http://192.168.1.6:8000/api/sms`). Point an SMS forwarder app (SMS to URL
+  Forwarder, MacroDroid or Tasker) at it, filtered to bank senders.
+- **Away from home:** use a tunnel (Cloudflare Tunnel / ngrok) or host the backend.
+
 ## Architecture
 
 ```
@@ -104,10 +138,14 @@ family_budget/
 │   ├── planner.py          Genetic-algorithm savings plan
 │   ├── analyzer.py         Plain statistics: summaries, trends, alerts
 │   ├── training_data.py    Built-in labelled data (k-NN phrases, ID3 expert examples)
-│   ├── storage.py          PostgreSQL storage (SQLAlchemy)
+│   ├── storage.py          PostgreSQL storage: encrypted, hash-chained, signed ledger
+│   ├── crypto.py           AES-256-GCM, SHA-256 chain, Ed25519, HMAC
+│   ├── sms.py              Bank SMS parser
+│   ├── sms_demo.py         Realistic fake bank SMS for demo mode
 │   └── sample_data.py      6-month demo family
 ├── scripts/migrate_sqlite.py  Copy the old SQLite data/budget.db into PostgreSQL
-├── tests/                  test_budget.py (algorithms) + test_api.py (API)
+├── scripts/encrypt_legacy.py  Encrypt transactions left in the old plaintext table
+├── tests/                  algorithms, API, and security/SMS tests
 ├── docker-compose.yml      Optional PostgreSQL in Docker
 ├── .env.example            DATABASE_URL template
 ├── sample_statement.csv    Example bank statement for the importer

@@ -8,22 +8,27 @@ Run with:  uvicorn api.main:app --reload
 Then open http://localhost:8000  (interactive API docs at /docs)
 """
 
+import hmac
 import io
 import json
+import os
+import secrets
+import socket
 from datetime import date as Date
+from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
 import pandas as pd
-from fastapi import Depends, FastAPI, File, HTTPException, Query, UploadFile
+from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from budget import analyzer, anomalies, categorizer, forecaster, necessity, patterns, planner, sample_data
+from budget import analyzer, anomalies, categorizer, forecaster, necessity, patterns, planner, sample_data, sms, sms_demo
 from budget.categorizer import ALL_CATEGORIES, EXPENSE_CATEGORIES, INCOME_CATEGORIES, KNNCategorizer
-from budget.storage import BudgetStore
+from budget.storage import ENV_FILE, BudgetStore, DuplicateTransaction, load_dotenv
 
 FRONTEND = Path(__file__).resolve().parent.parent / "frontend"
 
@@ -106,6 +111,7 @@ def meta(store: BudgetStore = Depends(get_store)):
         "categories": {"expense": EXPENSE_CATEGORIES, "income": INCOME_CATEGORIES, "all": ALL_CATEGORIES},
         "savings_category": analyzer.SAVINGS_CATEGORY,
         "transaction_count": int(len(df)),
+        "legacy_plaintext_rows": store.legacy_rows,
     }
 
 
@@ -504,6 +510,134 @@ def models(store: BudgetStore = Depends(get_store)):
                      "log_likelihoods": [float(v) for v in anomaly["all"]["log_likelihood"]],
                      "threshold": anomaly["threshold"]}
     return out
+
+
+# ---------------------------------------------------------------- SMS capture
+class SmsIn(BaseModel):
+    sender: str = Field(min_length=1, max_length=40, description="SMS sender ID, e.g. VM-HDFCBK")
+    body: str = Field(min_length=1, max_length=1000)
+    received_at: datetime | None = None
+
+
+@lru_cache(maxsize=1)
+def sms_token() -> str:
+    """Shared secret the phone sends in the X-SMS-Token header. Generated into .env on first use."""
+    load_dotenv()
+    token = os.environ.get("SMS_TOKEN")
+    if not token:
+        token = secrets.token_urlsafe(24)
+        with ENV_FILE.open("a", encoding="utf-8") as f:
+            f.write("\n# Secret your phone sends with each forwarded SMS (header X-SMS-Token).\n"
+                    f"SMS_TOKEN={token}\n")
+        os.environ["SMS_TOKEN"] = token
+    return token
+
+
+def ingest_sms(store: BudgetStore, msg: SmsIn) -> dict:
+    """parse -> k-NN categorize -> encrypt + chain + sign -> store. Never raises for bad messages."""
+    parsed = sms.parse(msg.sender, msg.body, msg.received_at)
+    result = {"sender": msg.sender, "body": msg.body, **parsed}
+    if not parsed["ok"]:
+        return {**result, "stored": False}
+    t = parsed["transaction"]
+    pred = knn_for(store).predict(t["description"], t["type"])
+    t.update(category=pred["category"], confidence=pred["confidence"], needs_review=pred["needs_review"])
+    try:
+        t["id"] = store.add_transaction(
+            t["date"], t["description"], t["amount"], t["type"], t["category"], source="knn", channel="sms",
+            sms={"sender": msg.sender, "body": msg.body, "bank": t["bank"], "account": t["account"],
+                 "reference": t["reference"]},
+            dedupe_text=sms.dedupe_key(msg.sender, msg.body))
+    except DuplicateTransaction:
+        return {**result, "stored": False, "reason": "Duplicate: this SMS was already recorded."}
+    return {**result, "stored": True}
+
+
+@app.post("/api/sms", summary="Receive a forwarded bank SMS (needs the X-SMS-Token header)")
+def receive_sms(msg: SmsIn, x_sms_token: str | None = Header(None), store: BudgetStore = Depends(get_store)):
+    if not x_sms_token or not hmac.compare_digest(x_sms_token, sms_token()):
+        raise HTTPException(401, "Missing or wrong X-SMS-Token.")
+    return ingest_sms(store, msg)
+
+
+@app.post("/api/sms/parse", summary="Preview how an SMS would be parsed, without storing it")
+def preview_sms(msg: SmsIn, store: BudgetStore = Depends(get_store)):
+    parsed = sms.parse(msg.sender, msg.body, msg.received_at)
+    if parsed["ok"]:
+        t = parsed["transaction"]
+        pred = knn_for(store).predict(t["description"], t["type"])
+        t.update(category=pred["category"], confidence=pred["confidence"], needs_review=pred["needs_review"])
+        t["duplicate"] = store.is_duplicate(sms.dedupe_key(msg.sender, msg.body))
+    return parsed
+
+
+@app.post("/api/sms/demo", summary="Demo mode: simulate bank SMS through the full pipeline")
+def demo_sms(count: int = Query(6, ge=1, le=30), store: BudgetStore = Depends(get_store)):
+    results = [ingest_sms(store, SmsIn(**m)) for m in sms_demo.generate(count)]
+    return {"results": results, "stored": sum(r["stored"] for r in results)}
+
+
+@app.get("/api/sms/recent")
+def recent_sms(limit: int = Query(20, ge=1, le=100), store: BudgetStore = Depends(get_store)):
+    rows = store.sms_transactions(limit)
+    return {"rows": [{k: r.get(k) for k in ("id", "date", "description", "amount", "type", "category", "source")}
+                     | {"bank": (r.get("sms") or {}).get("bank"), "account": (r.get("sms") or {}).get("account"),
+                        "body": (r.get("sms") or {}).get("body")} for r in rows]}
+
+
+# ---------------------------------------------------------------- security & network
+@app.get("/api/security")
+def security(store: BudgetStore = Depends(get_store)):
+    report = store.verify_integrity()
+    raw = store.raw_ledger(3)
+    newest = None
+    if raw and not raw[0]["deleted"]:
+        decrypted = [r for r in store._decrypted_rows() if r["id"] == raw[0]["id"]]
+        newest = decrypted[0] if decrypted else None
+    short = lambda v: v if not isinstance(v, str) or len(v) <= 72 else v[:72] + "…"
+    return {
+        "integrity": report,
+        "keys": store.vault.fingerprints(),
+        "algorithms": {"encryption": "AES-256-GCM (random 96-bit nonce per record)",
+                       "chain": "SHA-256 hash chain", "signature": "Ed25519",
+                       "dedupe": "HMAC-SHA256", "key_derivation": "HKDF-SHA256 from LEDGER_KEY"},
+        "raw_rows": [{k: short(v) for k, v in r.items()} for r in raw],
+        "newest_decrypted": newest,
+        "legacy_plaintext_rows": store.legacy_rows,
+    }
+
+
+def lan_addresses() -> list[str]:
+    """This computer's private IPv4 addresses (what a phone on the same Wi-Fi can reach)."""
+    found = []
+    try:  # the address used for outgoing traffic; connecting a UDP socket sends no packets
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("10.255.255.255", 1))
+            found.append(s.getsockname()[0])
+    except OSError:
+        pass
+    try:
+        found += [i[4][0] for i in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET)]
+    except OSError:
+        pass
+    private = [ip for ip in dict.fromkeys(found)
+               if ip.startswith(("192.168.", "10.")) or (ip.startswith("172.") and 16 <= int(ip.split(".")[1]) <= 31)]
+    return private
+
+
+@app.get("/api/network")
+def network(request: Request):
+    port = request.url.port or (443 if request.url.scheme == "https" else 80)
+    ips = lan_addresses()
+    return {
+        "port": port,
+        "addresses": ips,
+        "app_urls": [f"http://{ip}:{port}" for ip in ips],
+        "sms_urls": [f"http://{ip}:{port}/api/sms" for ip in ips],
+        "opened_via": request.url.hostname,
+        "token_location": ".env (SMS_TOKEN)",
+        "token_ready": bool(sms_token()),
+    }
 
 
 # ---------------------------------------------------------------- frontend (mounted last so /api wins)

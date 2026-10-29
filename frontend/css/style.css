@@ -224,6 +224,16 @@ pre.rules { background: var(--surface-2); border: 1px solid var(--border); borde
 .empty { text-align: center; padding: 48px 16px; color: var(--muted); }
 .loading { color: var(--muted); padding: 32px 0; }
 
+/* ---------------------------------------------------------------- SMS results */
+.sms-result { border: 1px solid var(--border); border-left: 4px solid var(--primary); border-radius: 10px; padding: 10px 12px; margin-top: 8px; background: var(--surface); }
+.sms-result.rejected { border-left-color: var(--warning); }
+.sms-head { display: flex; justify-content: space-between; gap: 8px; align-items: center; flex-wrap: wrap; font-size: .85rem; }
+.sms-body { font-family: ui-monospace, Consolas, monospace; font-size: .8rem; color: var(--muted); margin: 4px 0; word-break: break-word; }
+.sms-parsed { font-size: .9rem; }
+.pill { font-size: .75rem; padding: 2px 8px; border-radius: 99px; background: var(--primary-soft); color: var(--primary-strong); white-space: nowrap; }
+.pill.muted-pill { background: var(--warning-soft); color: var(--warning); }
+pre.rules { white-space: pre-wrap; word-break: break-all; }
+
 /* ---------------------------------------------------------------- toasts */
 .toasts { position: fixed; bottom: 16px; right: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 50; max-width: min(420px, calc(100vw - 32px)); }
 .toast { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--success); padding: 10px 14px; border-radius: 10px; box-shadow: 0 6px 20px rgba(0,0,0,.15); }
