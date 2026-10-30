@@ -113,8 +113,7 @@ Every transaction (manual, CSV, demo or SMS) is stored encrypted and tamper-evid
 
 Category and Reasonable/Unnecessary labels are encrypted separately and bound to their row, so they can be
 edited without breaking the chain. Deleting a transaction erases its details but keeps its hashes, so the chain
-still verifies. The **📱 SMS & Security** tab has a *Verify integrity* button and shows a raw database row next to
-its decrypted form.
+still verifies. The **📱 SMS & Security** tab has a *Verify integrity* button.
 
 **Keys** (`LEDGER_KEY`, `LEDGER_SIGNING_KEY`) are generated into `.env` on first start and never stored in the
 database. **Back up `.env`**: without it the transactions can't be decrypted.

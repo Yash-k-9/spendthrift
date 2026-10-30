@@ -349,12 +349,6 @@ class BudgetStore:
         return {"ok": not problems, "rows_checked": len(rows), "deleted": sum(bool(r["deleted"]) for r in rows),
                 "head": prev, "problems": problems}
 
-    def raw_ledger(self, limit: int = 5) -> list[dict]:
-        """The newest rows exactly as stored in the database (what an attacker with the DB would see)."""
-        with self.engine.connect() as conn:
-            rows = conn.execute(select(ledger_table).order_by(ledger_table.c.id.desc()).limit(limit)).mappings().all()
-        return [dict(r) for r in rows]
-
     # ---- budgets ------------------------------------------------------
     def set_budget(self, category: str, monthly_limit: float):
         with self.engine.begin() as conn:

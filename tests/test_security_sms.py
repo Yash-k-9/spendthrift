@@ -164,8 +164,8 @@ def test_demo_mode_and_security_report(client):
     assert res["stored"] == 5 and len(res["results"]) == 6     # + one rejected OTP/promo
     sec = c.get("/api/security").json()
     assert sec["integrity"]["ok"] and sec["integrity"]["rows_checked"] == 5
-    assert sec["newest_decrypted"]["channel"] == "sms"
-    assert "SWIGGY" not in str(sec["raw_rows"])
+    assert "raw_rows" not in sec and "newest_decrypted" not in sec   # no stored contents leave the API
+    assert "SWIGGY" not in str(sec)
 
 
 def test_parse_preview_does_not_store(client):

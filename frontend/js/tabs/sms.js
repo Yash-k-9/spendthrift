@@ -34,29 +34,18 @@ function securityHtml(s) {
         every signature is valid and every record decrypts.${i.deleted ? ` ${i.deleted} deleted (redacted) rows still verify.` : ""}`)
     : alertBox("error", `❌ <b>Integrity problems found (${i.problems.length}).</b>
         <ul class="tips">${i.problems.slice(0, 8).map((p) => `<li>${p.id ? `Row #${p.id}: ` : ""}${esc(p.issue)}</li>`).join("")}</ul>`);
-  const raw = s.raw_rows[0];
   const algos = Object.entries(s.algorithms).map(([k, v]) => `<li><b>${esc(k.replace("_", " "))}:</b> ${esc(v)}</li>`).join("");
   return `
     ${status}
     ${s.legacy_plaintext_rows ? alertBox("warning", `⚠️ ${s.legacy_plaintext_rows} transactions are still in the old
       <b>unencrypted</b> table. Run <code>python scripts/encrypt_legacy.py</code> to move them into the encrypted ledger.`) : ""}
-    <div class="grid cols-2 mt">
-      <div class="card">
-        <h3>How each transaction is protected</h3>
-        <ul class="tips">${algos}</ul>
-        <p class="muted">Key fingerprint <code>${esc(s.keys.encryption_key)}</code> · keys live in <code>.env</code>,
-          never in the database. Back that file up: without it the data can't be decrypted.</p>
-        <p class="muted">Chain head <code>${esc(i.head.slice(0, 24))}…</code></p>
-        <button id="verify" class="btn secondary">🔁 Verify integrity again</button>
-      </div>
-      <div class="card">
-        <h3>What the database actually stores</h3>
-        ${raw ? `<p class="muted">Newest row exactly as PostgreSQL holds it:</p>
-          <pre class="rules">${esc(JSON.stringify(raw, null, 2))}</pre>
-          <p class="muted">The same row, decrypted with the key:</p>
-          <pre class="rules">${esc(JSON.stringify(s.newest_decrypted, null, 2))}</pre>`
-        : `<p class="muted">No rows yet. Simulate some SMS above.</p>`}
-      </div>
+    <div class="card mt">
+      <h3>How each transaction is protected</h3>
+      <ul class="tips">${algos}</ul>
+      <p class="muted">Key fingerprint <code>${esc(s.keys.encryption_key)}</code> · keys live in <code>.env</code>,
+        never in the database. Back that file up: without it the data can't be decrypted.</p>
+      <p class="muted">Chain head <code>${esc(i.head.slice(0, 24))}…</code></p>
+      <button id="verify" class="btn secondary">🔁 Verify integrity again</button>
     </div>`;
 }
 

@@ -670,21 +670,12 @@ def recent_sms(limit: int = Query(20, ge=1, le=100), store: BudgetStore = Depend
 # ---------------------------------------------------------------- security & network
 @app.get("/api/security")
 def security(store: BudgetStore = Depends(get_store)):
-    report = store.verify_integrity()
-    raw = store.raw_ledger(3)
-    newest = None
-    if raw and not raw[0]["deleted"]:
-        decrypted = [r for r in store._decrypted_rows() if r["id"] == raw[0]["id"]]
-        newest = decrypted[0] if decrypted else None
-    short = lambda v: v if not isinstance(v, str) or len(v) <= 72 else v[:72] + "…"
     return {
-        "integrity": report,
+        "integrity": store.verify_integrity(),
         "keys": store.vault.fingerprints(),
         "algorithms": {"encryption": "AES-256-GCM (random 96-bit nonce per record)",
                        "chain": "SHA-256 hash chain", "signature": "Ed25519",
                        "dedupe": "HMAC-SHA256", "key_derivation": "HKDF-SHA256 from LEDGER_KEY"},
-        "raw_rows": [{k: short(v) for k, v in r.items()} for r in raw],
-        "newest_decrypted": newest,
         "legacy_plaintext_rows": store.legacy_rows,
     }
 
