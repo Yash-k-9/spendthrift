@@ -71,7 +71,9 @@ the learned tree rules, the elbow curve, EM convergence and GA convergence.
   compares the prediction with reality.
 - **🧩 Patterns:** k-Means clusters with a scatter plot and adjustable *k*.
 - **🎯 Budgets:** per-category limits, suggestions and progress bars.
-- **➕ Add / Import:** add expenses or import a CSV, auto-categorized by k-NN with confidence scores.
+- **➕ Add / Import:** add expenses, or import a bank statement **PDF** (net-banking statement or UPI-app
+  history, password-protected files supported) or CSV, auto-categorized by k-NN with confidence scores.
+  Rows already recorded (same date, amount and type, e.g. captured from SMS) are flagged and skipped.
   "See how k-NN decides" shows the nearest neighbours.
 - **📋 Transactions:** correct categories (k-NN learns) and label expenses Reasonable/Unnecessary
   (the decision tree learns).
@@ -165,9 +167,11 @@ family_budget/
 │   ├── sms.py              Bank SMS parser
 │   ├── sms_demo.py         Realistic fake bank SMS for demo mode
 │   ├── goals.py            Spending plans, alerts and reward points
+│   ├── statement_pdf.py    Bank / UPI-app statement PDF parser
 │   └── sample_data.py      6-month demo family
 ├── scripts/migrate_sqlite.py  Copy the old SQLite data/budget.db into PostgreSQL
 ├── scripts/encrypt_legacy.py  Encrypt transactions left in the old plaintext table
+├── scripts/make_sample_statements.py  Sample statement PDFs for trying the PDF import
 ├── tests/                  algorithms, API, security/SMS, and goals tests
 ├── docker-compose.yml      Optional PostgreSQL in Docker
 ├── .env.example            DATABASE_URL template
@@ -221,7 +225,8 @@ python -m pytest -q
 4. **Predictions:** pick **September** in the sidebar. LWR predicts October, and the app shows how
    close it got to what actually happened. Then pick **October**, set a 30% target, and the GA builds
    a plan. Click *Use this plan as my budgets*.
-5. **Add / Import:** import `sample_statement.csv` and watch k-NN categorize it. Open *See how k-NN
+5. **Add / Import:** import `sample_statement.csv`, or a PDF from `samples/` (create them with
+   `python scripts/make_sample_statements.py`; the SBI-style one's password is `demo1234`), and watch k-NN categorize it. Open *See how k-NN
    decides* to show the neighbours.
 6. **Transactions:** correct a category or label an expense, and show that the models learn from it.
 7. **Models:** walk through each algorithm's evaluation chart.

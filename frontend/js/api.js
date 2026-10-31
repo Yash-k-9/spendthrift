@@ -35,9 +35,10 @@ export const api = {
   put: (path, body) => request("PUT", path, { body }),
   patch: (path, body) => request("PATCH", path, { body }),
   del: (path) => request("DELETE", path),
-  upload: (path, file) => {
+  upload: (path, file, fields = {}) => {
     const form = new FormData();
     form.append("file", file);
+    for (const [k, v] of Object.entries(fields)) if (v) form.append(k, v);
     return request("POST", path, { form });
   },
   exportUrl: (path, params) => {

@@ -21,13 +21,13 @@ from pathlib import Path
 from typing import Literal
 
 import pandas as pd
-from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, Request, UploadFile
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from budget import (analyzer, anomalies, categorizer, forecaster, goals, necessity, patterns, planner, sample_data,
-                    sms, sms_demo)
+                    sms, sms_demo, statement_pdf)
 from budget.categorizer import ALL_CATEGORIES, EXPENSE_CATEGORIES, INCOME_CATEGORIES, KNNCategorizer
 from budget.storage import ENV_FILE, BudgetStore, DuplicateTransaction, load_dotenv
 
@@ -364,34 +364,68 @@ def add_transaction(t: NewTransaction, store: BudgetStore = Depends(get_store)):
             "needs_review": pred["needs_review"] if pred else False}
 
 
-@app.post("/api/import/preview")
-async def import_preview(file: UploadFile = File(...), store: BudgetStore = Depends(get_store)):
+def _read_csv(data: bytes) -> pd.DataFrame:
+    raw = pd.read_csv(io.BytesIO(data))
+    raw.columns = [c.strip().lower() for c in raw.columns]
+    missing = {"date", "description", "amount"} - set(raw.columns)
+    if missing:
+        raise ValueError(f"Missing columns: {', '.join(sorted(missing))}")
+    raw["date"] = pd.to_datetime(raw["date"], dayfirst=True).dt.strftime("%Y-%m-%d")
+    raw["amount"] = pd.to_numeric(raw["amount"])
+    if "type" not in raw.columns:
+        raw["type"] = raw["amount"].apply(lambda a: "expense" if a < 0 else "income")
+    raw["type"] = raw["type"].astype(str).str.lower().str.strip()
+    raw["amount"] = raw["amount"].abs()
+    raw["member"] = raw["member"].fillna("Family").astype(str) if "member" in raw.columns else "Family"
+    raw["description"] = raw["description"].astype(str)
+    return raw[(raw["amount"] > 0) & raw["type"].isin(["income", "expense"])].reset_index(drop=True)
+
+
+def _mark_duplicates(raw: pd.DataFrame, existing: pd.DataFrame) -> list[bool]:
+    """A row is a likely duplicate if an existing transaction has the same date, amount and type
+    (e.g. the same statement imported twice, or a payment already captured from SMS)."""
+    from collections import Counter
+    if existing.empty:
+        return [False] * len(raw)
+    have = Counter(zip(existing["date"].dt.strftime("%Y-%m-%d"), existing["amount"].round(2), existing["type"]))
+    out = []
+    for key in zip(raw["date"], raw["amount"].round(2), raw["type"]):
+        out.append(have[key] > 0)
+        have[key] -= 1    # two identical payments on a day need two matches
+    return out
+
+
+@app.post("/api/import/preview", summary="Read a CSV or PDF statement and categorize it, without storing")
+async def import_preview(file: UploadFile = File(...), password: str | None = Form(None),
+                         store: BudgetStore = Depends(get_store)):
+    data = await file.read()
+    is_pdf = data[:5] == b"%PDF-" or (file.filename or "").lower().endswith(".pdf")
+    info = {"format": "pdf" if is_pdf else "csv"}
     try:
-        raw = pd.read_csv(io.BytesIO(await file.read()))
-        raw.columns = [c.strip().lower() for c in raw.columns]
-        missing = {"date", "description", "amount"} - set(raw.columns)
-        if missing:
-            raise ValueError(f"Missing columns: {', '.join(sorted(missing))}")
-        raw["date"] = pd.to_datetime(raw["date"], dayfirst=True).dt.strftime("%Y-%m-%d")
-        raw["amount"] = pd.to_numeric(raw["amount"])
-        if "type" not in raw.columns:
-            raw["type"] = raw["amount"].apply(lambda a: "expense" if a < 0 else "income")
-        raw["type"] = raw["type"].astype(str).str.lower().str.strip()
-        raw["amount"] = raw["amount"].abs()
-        raw["member"] = raw["member"].fillna("Family").astype(str) if "member" in raw.columns else "Family"
-        raw["description"] = raw["description"].astype(str)
-        raw = raw[(raw["amount"] > 0) & raw["type"].isin(["income", "expense"])].reset_index(drop=True)
+        if is_pdf:
+            parsed = statement_pdf.parse_pdf(data, password)
+            raw = pd.DataFrame(parsed["rows"]).assign(member="Family")
+            info.update(pages=parsed["pages"], method=parsed["method"], unresolved=parsed["unresolved"],
+                        balance_mismatches=parsed["balance_mismatches"])
+        else:
+            raw = _read_csv(data)
+            raw["type_guessed"] = False
+    except statement_pdf.PasswordRequired as e:
+        return {"password_required": True, "wrong_password": e.wrong, "message": str(e), **info}
+    except statement_pdf.StatementError as e:
+        raise HTTPException(400, str(e))
     except Exception as e:
         raise HTTPException(400, f"Couldn't read that file: {e}")
     knn = knn_for(store)
     preds = [knn.predict(d, t) for d, t in zip(raw["description"], raw["type"])]
     raw["category"] = [p["category"] for p in preds]
     raw["confidence"] = [p["confidence"] for p in preds]
-    raw["needs_review"] = [p["needs_review"] for p in preds]
+    raw["needs_review"] = [p["needs_review"] or g for p, g in zip(preds, raw["type_guessed"])]
     raw["source"] = "knn"
+    raw["duplicate"] = _mark_duplicates(raw, store.transactions())
     return {"rows": records(raw, ["date", "description", "amount", "type", "category", "member", "source",
-                                  "confidence", "needs_review"]),
-            "unsure": int(sum(p["needs_review"] for p in preds))}
+                                  "confidence", "needs_review", "type_guessed", "duplicate"]),
+            "unsure": int(raw["needs_review"].sum()), "duplicates": int(raw["duplicate"].sum()), **info}
 
 
 @app.post("/api/import", status_code=201)
