@@ -25,7 +25,14 @@
   :root[data-theme="dark"] .splash { background: radial-gradient(ellipse at 50% 42%, #1a2621 0%, #111815 50%, #0a0e0c 100%); }
 
 
-.splash-stage { position: relative; width: var(--note-w); height: var(--note-h); }
+/* falling money behind the note (drawn by js/splash.js) */
+.splash-rain {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  pointer-events: none;
+  animation: fade-in .6s ease both;
+}
+
+.splash-stage { position: relative; z-index: 1; width: var(--note-w); height: var(--note-h); }
 
 /* ---- 1 & 5: fall in, then fall away */
 .note-drop {
@@ -207,5 +214,5 @@
   .note-drop, .note-shadow, .note, .note-bottom, .note-print, .note-title, .note-sub, .note-tube, .splash-skip {
     animation: none;
   }
-  .note-tube { display: none; }
+  .note-tube, .splash-rain { display: none; }
 }
