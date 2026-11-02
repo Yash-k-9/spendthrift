@@ -44,7 +44,7 @@ def test_dashboard_and_insights(demo):
     c, _ = demo
     d = c.get("/api/dashboard", params={"month": "2026-10"}).json()
     assert d["summary"]["income"] > 0 and d["previous"]["month"] == "2026-09"
-    assert len(d["trend"]) == 6
+    assert len(d["trend"]) == sample_data.DEFAULT_MONTHS
     i = c.get("/api/insights", params={"month": "2026-10"}).json()
     assert i["unnecessary"]["count"] > 0 and i["issues"]
 

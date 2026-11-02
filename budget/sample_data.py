@@ -1,4 +1,4 @@
-"""Generate 6 months of realistic demo data for a family of four.
+"""Generate a year (by default) of realistic demo data for a family of four.
 
 Spending on dining out and shopping slowly creeps up, and there are a few big
 one-off purchases, so the ML models have real patterns to find.
@@ -37,18 +37,32 @@ MONTHLY_EXPENSES = [
     ("PVR movie tickets", "Entertainment", 600, 1200, 1, "Family"),
     ("Apollo pharmacy", "Healthcare", 300, 1500, 1, "Mom"),
     ("Salon haircut", "Personal Care", 300, 900, 1, "Mom"),
+    ("Blinkit order", "Groceries", 250, 900, 2, "Mom"),
+    ("Uber ride", "Transport", 150, 480, 3, "Riya"),
+    ("Dominos pizza", "Dining Out", 450, 900, 1, "Aarav"),
+    ("BookMyShow", "Entertainment", 400, 900, 1, "Riya"),
+    ("Cult fit membership", "Subscriptions", 999, 999, 1, "Mom"),
 ]
-ONE_OFFS = [  # (month offset from start, description, category, amount, member)
-    (1, "Doctor consultation and lab test", "Healthcare", 3500, "Dad"),
-    (2, "Birthday gift for cousin", "Gifts & Donations", 2500, "Mom"),
-    (3, "Goa trip hotel booking", "Travel", 14000, "Family"),
-    (3, "Flight tickets Goa", "Travel", 18000, "Family"),
-    (4, "Diwali shopping Flipkart", "Shopping", 9500, "Family"),
-    (4, "Temple donation", "Gifts & Donations", 1100, "Mom"),
-    (5, "Laptop purchase Croma", "Shopping", 42000, "Riya"),
-    (5, "Car service", "Transport", 4800, "Dad"),
+ONE_OFFS = [  # (month offset from the latest month: -1 = latest, -2 = the one before...), description, ...
+    (-12, "Holi sweets and colours", "Gifts & Donations", 1800, "Family"),
+    (-11, "AC repair and gas refill", "Housing", 4500, "Dad"),
+    (-10, "School admission fee", "Education", 25000, "Aarav"),
+    (-9, "Wedding gift for friend", "Gifts & Donations", 5000, "Mom"),
+    (-8, "Star Health annual premium", "Insurance", 18500, "Dad"),
+    (-7, "Samsung phone purchase", "Shopping", 24000, "Dad"),
+    (-6, "Dental treatment", "Healthcare", 6500, "Mom"),
+    (-5, "Doctor consultation and lab test", "Healthcare", 3500, "Dad"),
+    (-4, "Birthday gift for cousin", "Gifts & Donations", 2500, "Mom"),
+    (-3, "Goa trip hotel booking", "Travel", 14000, "Family"),
+    (-3, "Flight tickets Goa", "Travel", 18000, "Family"),
+    (-2, "Diwali shopping Flipkart", "Shopping", 9500, "Family"),
+    (-2, "Temple donation", "Gifts & Donations", 1100, "Mom"),
+    (-1, "Laptop purchase Croma", "Shopping", 42000, "Riya"),
+    (-1, "Car service", "Transport", 4800, "Dad"),
 ]
+DEFAULT_MONTHS = 12
 CREEPING = ("Swiggy", "Zomato", "Starbucks", "Amazon", "Myntra")
+CREEP_MONTHS = 6   # spending on wants creeps up over the latest 6 months
 
 
 def _month_starts(n: int, today: date) -> list[date]:
@@ -60,7 +74,7 @@ def _month_starts(n: int, today: date) -> list[date]:
     return list(reversed(out))
 
 
-def generate(months: int = 6, seed: int = 7, today: date | None = None) -> list[dict]:
+def generate(months: int = DEFAULT_MONTHS, seed: int = 7, today: date | None = None) -> list[dict]:
     rng = random.Random(seed)
     today = today or date.today()
     rows = []
@@ -80,19 +94,20 @@ def generate(months: int = 6, seed: int = 7, today: date | None = None) -> list[
         add(start + timedelta(days=min(4, span)), "Salary - Mom", "Salary", 38000, "income", "Mom")
         if i % 2 == 1:
             add(day(), "Freelance design project", "Freelance", rng.choice([6000, 8000, 12000]), "income", "Mom")
-        if i == months - 1:
+        if (months - 1 - i) % 3 == 0:   # quarterly, ending with the latest month
             add(day(), "FD interest", "Interest & Dividends", 1850, "income", "Dad")
 
-        creep = 1 + 0.12 * i
+        k = i - (months - CREEP_MONTHS)   # 0 .. 5 over the latest 6 months
+        creep = 1 + 0.12 * max(k, 0)
         for desc, category, lo, hi, times, member in MONTHLY_EXPENSES:
-            count = times + (1 if desc.startswith(("Swiggy", "Zomato")) and i >= 3 else 0)
+            count = times + (1 if desc.startswith(("Swiggy", "Zomato")) and k >= 3 else 0)
             for _ in range(count):
                 amount = rng.uniform(lo, hi) * (creep if desc.startswith(CREEPING) else 1)
                 when = day() if times > 1 else start + timedelta(days=min(rng.randint(1, 9), span))
                 add(when, desc, category, amount, "expense", member)
 
         for offset, desc, category, amount, member in ONE_OFFS:
-            if offset == i:
+            if offset == i - months:
                 add(day(), desc, category, amount, "expense", member)
 
     return rows

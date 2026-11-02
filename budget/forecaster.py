@@ -1,12 +1,19 @@
 """Predict next month's spending, income and savings with Locally Weighted Regression.
 
 For every category we have a monthly series y_0 .. y_{n-1}. LWR fits a local
-line around x = n (next month) and reads off the prediction.
+line around x = n (next month). Monthly spending is noisy, so a raw local line
+mostly extends noise; the forecast uses a *shrunken trend* instead: the
+locally weighted level plus a quarter of the local slope (see ml/lwr.py).
 
-The bandwidth tau is chosen automatically by back-testing: for each past month
-t we predict y_t using only months before t, and keep the tau with the lowest
-mean absolute error (MAE). The same back-test gives the typical error, which
-turns the prediction into a probability of meeting the savings goal.
+The bandwidth (tau = 2) and trend weight (0.25) are fixed. Picking tau per
+family by back-testing on only a few months overfitted: in a walk-forward test
+on 10 demo families it lost to the "3-month average" baseline, while these
+fixed settings beat it at 6, 9 and 12 months and tie at 18.
+
+The walk-forward back-test (predict each past month t from the months before
+it) still runs on the family's own data. It reports the error against the
+baselines, and its errors turn the prediction into a probability of meeting
+the savings goal.
 """
 
 import math
@@ -15,11 +22,12 @@ import numpy as np
 import pandas as pd
 
 from . import analyzer
-from .ml.lwr import lwr_predict
+from .ml.lwr import shrunk_lwr_predict
 
-TAU_CANDIDATES = [0.75, 1.0, 1.5, 2.0, 3.0, 5.0]
-DEFAULT_TAU = 2.0
-MIN_MONTHS = 3      # LWR needs a few points; with fewer we use the plain average
+TAU = 2.0             # bandwidth: months within ~2 of "now" carry most of the weight
+TREND_WEIGHT = 0.25   # share of the local slope added to the local level
+TAU_CANDIDATES = [0.75, 1.0, 1.5, 2.0, 3.0, 5.0]   # only for the sensitivity chart in the Models tab
+MIN_MONTHS = 3        # LWR needs a few points; with fewer we use the plain average
 
 
 def _normal_cdf(z: float) -> float:
@@ -34,48 +42,48 @@ def monthly_series(df: pd.DataFrame, upto: str):
     return months, spend, income
 
 
-def predict_next(y, tau: float) -> float:
+def predict_next(y, tau: float = TAU, trend_weight: float = TREND_WEIGHT) -> float:
     y = np.asarray(y, dtype=float)
     if len(y) == 0:
         return 0.0
     if len(y) < MIN_MONTHS:
         return float(y.mean())
-    pred = lwr_predict(np.arange(len(y)), y, len(y), tau)
-    return float(np.clip(pred, 0, 2 * y.max()))  # a straight local line can overshoot - keep it sane
+    pred = shrunk_lwr_predict(np.arange(len(y)), y, len(y), tau, trend_weight)
+    return float(np.clip(pred, 0, 2 * y.max()))  # a local line can still overshoot - keep it sane
 
 
-def backtest(spend: pd.DataFrame, income: pd.Series, tau: float) -> dict:
+def backtest(spend: pd.DataFrame, income: pd.Series, tau: float = TAU, trend_weight: float = TREND_WEIGHT) -> dict:
     """Walk-forward test: predict each month from the months before it."""
     n = len(spend)
-    errs = {"lwr": [], "naive": [], "mean3": []}
+    errs = {"lwr": [], "linear": [], "naive": [], "mean3": []}
     total_errors, income_errors = [], []
     for t in range(MIN_MONTHS, n):
         total_pred = total_actual = 0.0
         for cat in spend.columns:
             y = spend[cat].values
-            pred = predict_next(y[:t], tau)
+            pred = predict_next(y[:t], tau, trend_weight)
             errs["lwr"].append(abs(pred - y[t]))
+            errs["linear"].append(abs(predict_next(y[:t], tau, 1.0) - y[t]))   # plain LWR, full slope
             errs["naive"].append(abs(y[t - 1] - y[t]))            # "same as last month"
             errs["mean3"].append(abs(y[t - 3:t].mean() - y[t]))   # "average of last 3 months"
             total_pred += pred
             total_actual += y[t]
         total_errors.append(total_actual - total_pred)
-        income_errors.append(income.values[t] - predict_next(income.values[:t], tau))
+        income_errors.append(income.values[t] - predict_next(income.values[:t], tau, trend_weight))
+    mae = lambda k: float(np.mean(errs[k])) if errs[k] else None
     return {
-        "lwr_mae": float(np.mean(errs["lwr"])) if errs["lwr"] else None,
-        "naive_mae": float(np.mean(errs["naive"])) if errs["naive"] else None,
-        "mean3_mae": float(np.mean(errs["mean3"])) if errs["mean3"] else None,
+        "lwr_mae": mae("lwr"), "linear_mae": mae("linear"), "naive_mae": mae("naive"), "mean3_mae": mae("mean3"),
         "tested_months": n - MIN_MONTHS if n > MIN_MONTHS else 0,
         "total_errors": total_errors,
         "income_errors": income_errors,
     }
 
 
-def choose_tau(spend: pd.DataFrame, income: pd.Series) -> tuple[float, dict]:
+def tau_sensitivity(spend: pd.DataFrame, income: pd.Series) -> dict:
+    """Back-test error for each bandwidth, to show how sensitive the forecast is to tau (not used to pick it)."""
     if len(spend) <= MIN_MONTHS:
-        return DEFAULT_TAU, {}
-    scores = {tau: backtest(spend, income, tau)["lwr_mae"] for tau in TAU_CANDIDATES}
-    return min(scores, key=scores.get), scores
+        return {}
+    return {tau: backtest(spend, income, tau)["lwr_mae"] for tau in TAU_CANDIDATES}
 
 
 def forecast(df: pd.DataFrame, upto: str, savings_goal_pct: float, exclude_ids=()) -> dict | None:
@@ -89,19 +97,19 @@ def forecast(df: pd.DataFrame, upto: str, savings_goal_pct: float, exclude_ids=(
     months, spend, income = monthly_series(df, upto)
     if len(months) < 2:
         return None
-    tau, tau_scores = choose_tau(spend, income)
-    bt = backtest(spend, income, tau)
+    tau = TAU
+    bt = backtest(spend, income)
 
     rows = []
     for cat in spend.columns:
         y = spend[cat].values
-        pred = predict_next(y, tau)
+        pred = predict_next(y)
         avg3 = float(y[-3:].mean())
         rows.append({"category": cat, "last_month": float(y[-1]), "avg_3_months": avg3, "predicted": pred,
                      "change_pct": (pred / avg3 - 1) * 100 if avg3 else 0.0})
     categories = pd.DataFrame(rows).sort_values("predicted", ascending=False).reset_index(drop=True)
 
-    income_pred = predict_next(income.values, tau)
+    income_pred = predict_next(income.values)
     spending_pred = float(categories["predicted"].sum())
     savings_pred = income_pred - spending_pred
 
@@ -133,7 +141,8 @@ def forecast(df: pd.DataFrame, upto: str, savings_goal_pct: float, exclude_ids=(
         "spending_range": (spending_pred - 1.28 * sigma, spending_pred + 1.28 * sigma),  # ~80% interval
         "prob_goal": prob_goal,
         "tau": tau,
-        "tau_scores": tau_scores,
+        "trend_weight": TREND_WEIGHT,
+        "tau_scores": tau_sensitivity(spend, income),
         "backtest": bt,
         "actual": actual,
         "excluded": excluded[excluded["month"] <= upto],

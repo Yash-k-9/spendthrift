@@ -60,7 +60,7 @@ export async function render(node) {
     <h2>🔮 Forecast for ${esc(nm)} · Locally Weighted Regression</h2>
     <p class="muted">Predicts regular spending from months up to ${esc(monthName(d.month))}.
       ${d.excluded_count} one-off purchases found by k-Means are left out, since a one-time laptop is not a trend.
-      Bandwidth τ = ${d.tau} (picked automatically by back-testing).</p>
+      Bandwidth τ = ${d.tau}, with a shrunken trend (a quarter of the local slope) so noise isn't mistaken for a trend.</p>
     <div class="grid cols-4">
       ${metric("Predicted income", money(d.income_pred))}
       ${metric("Predicted spending", money(d.spending_pred), `80% range ${money(lo)} – ${money(hi)}`)}

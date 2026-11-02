@@ -18,7 +18,7 @@ There is no API key, no internet connection and no scikit-learn.
 | # | Algorithm | File | Job in the project |
 |---|---|---|---|
 | 1 | **k-Nearest Neighbor** | `budget/ml/knn.py` (+ TF-IDF in `text.py`) | Auto-categorizes each expense from its description ("UPI/ZOMATO/8812" → Dining Out). It learns instantly from every category the family corrects. |
-| 2 | **Locally Weighted Regression** | `budget/ml/lwr.py` | Predicts next month's spending per category, income and savings rate, and the **probability of meeting the savings goal**. The bandwidth τ is chosen by back-testing. |
+| 2 | **Locally Weighted Regression** | `budget/ml/lwr.py` | Predicts next month's spending per category, income and savings rate, and the **probability of meeting the savings goal**. Uses a shrunken trend (local level + ¼ of the local slope, τ = 2) so month-to-month noise isn't extended as a trend. |
 | 3 | **ID3 Decision Tree** | `budget/ml/id3.py` | Classifies each expense as **Reasonable / Unnecessary** using entropy and information gain, and explains why with the decision path. It retrains on the family's own labels. |
 | 4 | **k-Means** | `budget/ml/kmeans.py` | Discovers spending patterns: fixed bills, frequent small spends, large one-off purchases. Uses k-means++ initialisation and the elbow method. |
 | 5 | **Expectation-Maximization** | `budget/ml/gmm_em.py` | Fits a Gaussian Mixture Model of "normal" expenses. Very unlikely, unusually large expenses are flagged as excessive. |
@@ -44,22 +44,34 @@ There is no API key, no internet connection and no scikit-learn.
           └──► [5] EM / GMM ──► unusual or excessive expenses
 ```
 
-k-Means finds one-off purchases (a laptop, a holiday) and removes them before LWR forecasts. On the
-demo data this makes the LWR forecast beat both the "same as last month" and "3-month average"
-baselines in back-testing.
+k-Means finds one-off purchases (a laptop, a holiday) and removes them before LWR forecasts, so a
+one-time purchase isn't treated as a trend.
 
-## Results on the demo family (6 months)
+## Training data
+
+- **k-NN:** 633 labelled merchant names and phrases across 23 categories (Indian supermarkets, food apps,
+  fuel, billers, insurers, lenders, OTT, travel, salons, brokers...), each written the ways transactions
+  really arrive: typed, bank SMS / statement narration (`UPI/ZOMATO/8812`, `POS AMAZON BANGALORE`,
+  `ZOMATO PVT LTD`) and UPI-app style (`Paid to Zomato`). That's 3,654 training examples, plus every
+  category the family corrects.
+- **ID3:** all 96 combinations of its five attributes, labelled by personal-finance rules, plus the family's
+  own Reasonable/Unnecessary labels (weighted 3×).
+- **LWR, k-Means, EM, Genetic Algorithm:** learn from the family's own history. The demo family has 12
+  months (about 690 transactions) with 15 planted one-off purchases and spending that creeps up over the
+  last 6 months.
+
+## Results (`python scripts/evaluate_models.py`)
 
 | Model | Result |
 |---|---|
-| k-NN categorizer | ~97% accuracy on new phrasings of known merchants; ~25% on completely unseen brand names (why corrections matter) |
-| LWR forecast | Sept → Oct spending predicted within ~5% of actual; back-test MAE lower than both baselines |
-| k-Means | Isolates all 8 one-off purchases into their own cluster |
-| EM anomalies | Flags the ₹42,000 laptop (16× usual) and the Diwali shopping spree |
-| ID3 | Flags the month's frequent food-delivery and café orders as unnecessary ("want → purchases are frequent") |
+| k-NN categorizer | **100%** on 120 real-world descriptions of known merchants (84% before the data was expanded); **82%** on 22 merchants never in the training data; 50% when whole merchants are held out of training |
+| ID3 | 85% 5-fold cross-validated accuracy on combinations it didn't see; flags frequent food-delivery orders as unnecessary |
+| LWR forecast | On 10 demo families never used for tuning (12 months each), average back-test error ₹410 per category-month vs ₹447 for "same as last month", ₹416 for the 3-month average and ₹488 for plain LWR. Best on average at 6, 9 and 12 months, 9–16% better than plain LWR. Sept → Oct predicted within ~2% for the demo family |
+| k-Means | Isolates all 15 one-off purchases into their own cluster, with no false members |
+| EM anomalies | Catches 5 of the 7 big one-offs (laptop, phone, flights, school admission...) with no false alarms |
 | Genetic Algorithm | Reaches the savings target without touching rent, EMIs, insurance, school fees or healthcare |
 
-The 🧠 Models tab in the web app shows these numbers live: accuracy against *k*, back-test error against τ,
+The 🧠 Models tab in the web app shows these numbers live: accuracy against *k*, back-test error by method and τ,
 the learned tree rules, the elbow curve, EM convergence and GA convergence.
 
 ## App tabs
@@ -155,7 +167,7 @@ family_budget/
 │   ├── ml/                 The six algorithms, from scratch (NumPy only)
 │   │   ├── knn.py  text.py  lwr.py  id3.py  kmeans.py  gmm_em.py  genetic.py
 │   ├── categorizer.py      k-NN categorizer + evaluation
-│   ├── forecaster.py       LWR forecasting, τ selection, back-test, goal probability
+│   ├── forecaster.py       Shrunken-trend LWR forecast, back-test, goal probability
 │   ├── necessity.py        Expense features + ID3 classification
 │   ├── patterns.py         k-Means spending patterns
 │   ├── anomalies.py        EM anomaly detection
@@ -168,10 +180,12 @@ family_budget/
 │   ├── sms_demo.py         Realistic fake bank SMS for demo mode
 │   ├── goals.py            Spending plans, alerts and reward points
 │   ├── statement_pdf.py    Bank / UPI-app statement PDF parser
-│   └── sample_data.py      6-month demo family
+│   ├── evaluation.py       Realistic test sets and metrics for all six models
+│   └── sample_data.py      12-month demo family
 ├── scripts/migrate_sqlite.py  Copy the old SQLite data/budget.db into PostgreSQL
 ├── scripts/encrypt_legacy.py  Encrypt transactions left in the old plaintext table
 ├── scripts/make_sample_statements.py  Sample statement PDFs for trying the PDF import
+├── scripts/evaluate_models.py  Train all six models and print an evaluation report
 ├── tests/                  algorithms, API, security/SMS, and goals tests
 ├── docker-compose.yml      Optional PostgreSQL in Docker
 ├── .env.example            DATABASE_URL template
@@ -203,7 +217,7 @@ family_budget/
    uvicorn api.main:app --reload
    ```
 
-   Open http://localhost:8000. In the sidebar, open **🗂️ Data → Load 6-month demo family**.
+   Open http://localhost:8000. In the sidebar, open **🗂️ Data → Load demo family (12 months)**.
    Interactive API docs are at http://localhost:8000/docs.
 
 To bring over data from the old SQLite version: `python scripts/migrate_sqlite.py`.

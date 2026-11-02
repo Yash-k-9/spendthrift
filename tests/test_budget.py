@@ -15,7 +15,7 @@ from budget.ml.gmm_em import GaussianMixtureEM
 from budget.ml.id3 import ID3DecisionTree, entropy
 from budget.ml.kmeans import kmeans
 from budget.ml.knn import KNNClassifier
-from budget.ml.lwr import lwr_predict
+from budget.ml.lwr import lwr_predict, shrunk_lwr_predict
 from budget.ml.text import TfidfVectorizer
 from budget.storage import BudgetStore
 
@@ -167,3 +167,11 @@ def test_ga_plan_reaches_target_without_touching_fixed_costs():
 def test_monthly_summary_math(store):
     s = analyzer.monthly_summary(store.transactions(), "2026-09")
     assert s["net_savings"] == pytest.approx(s["income"] - s["spending"])
+
+
+def test_shrunk_lwr_blends_level_and_trend():
+    x, y = [0, 1, 2, 3, 4], [10, 12, 11, 15, 20]
+    level, line = lwr_predict(x, y, 5, tau=2, degree=0), lwr_predict(x, y, 5, tau=2)
+    assert shrunk_lwr_predict(x, y, 5, tau=2, alpha=0) == pytest.approx(level)
+    assert shrunk_lwr_predict(x, y, 5, tau=2, alpha=1) == pytest.approx(line)
+    assert level < shrunk_lwr_predict(x, y, 5, tau=2, alpha=0.25) < line
