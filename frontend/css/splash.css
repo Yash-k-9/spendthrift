@@ -13,13 +13,13 @@
   --note-h: calc(var(--note-w) * 0.48);
   position: fixed; inset: 0; z-index: 100;
   display: grid; place-items: center;
-  background: radial-gradient(ellipse at 50% 42%, #ffffff 0%, #f1faf5 45%, #d8f0e3 100%);
+  background: radial-gradient(ellipse at 50% 42%, #ffffff 0%, #f6f5f1 50%, #e7e4da 100%);
   overflow: hidden;
   cursor: pointer;
   animation: splash-out .5s ease 4s forwards;
 }
 @media (prefers-color-scheme: dark) {
-  .splash { background: radial-gradient(ellipse at 50% 42%, #173a29 0%, #0e2219 50%, #08130e 100%); }
+  .splash { background: radial-gradient(ellipse at 50% 42%, #1a2621 0%, #111815 50%, #0a0e0c 100%); }
 }
 
 .splash-stage { position: relative; width: var(--note-w); height: var(--note-h); }

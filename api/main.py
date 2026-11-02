@@ -748,4 +748,14 @@ def network(request: Request):
 
 
 # ---------------------------------------------------------------- frontend (mounted last so /api wins)
-app.mount("/", StaticFiles(directory=FRONTEND, html=True), name="frontend")
+class FrontendFiles(StaticFiles):
+    """Static files that browsers re-check on every load (a cheap 304 when unchanged), so updates show up
+    without a hard refresh."""
+
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        response.headers["Cache-Control"] = "no-cache"
+        return response
+
+
+app.mount("/", FrontendFiles(directory=FRONTEND, html=True), name="frontend")

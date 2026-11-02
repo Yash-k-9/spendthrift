@@ -131,6 +131,8 @@ for (const btn of document.querySelectorAll("#tabs button")) {
   btn.addEventListener("click", () => { location.hash = btn.dataset.tab; });
 }
 window.addEventListener("hashchange", render);
+// Charts read their colours when drawn, so redraw when the system switches between light and dark.
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => render());
 
 startAlertWatcher();
 refresh().catch((err) => {

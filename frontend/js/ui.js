@@ -80,25 +80,29 @@ export function errorText(err) {
 }
 
 // ---------------------------------------------------------------- charts (Plotly)
-// Greens first (emerald, lime, teal: analogous), with the warm complement (amber, coral) mixed in
-// so neighbouring slices and series stay easy to tell apart.
-const PALETTE = ["#128a54", "#9bd34a", "#0f766e", "#f2a93b", "#4fd1a0", "#0b4f33", "#2bb5a8", "#6aa84f",
-                 "#e8705f", "#b7e4c7"];
+// Distinct, muted hues that sit well next to pine and gold: neighbouring slices and series stay easy
+// to tell apart, and nothing is neon. Pine and gold come first so the main series match the brand.
+const PALETTE = ["#2f7d5c", "#c99a3c", "#4f7cac", "#c4664e", "#7d6aa8", "#5aa39a", "#d48aa0", "#8c9a4f",
+                 "#9b7653", "#6f7f8c"];
 
 function chartTheme() {
   const css = getComputedStyle(document.documentElement);
   const text = css.getPropertyValue("--text").trim();
+  const muted = css.getPropertyValue("--muted").trim();
   const grid = css.getPropertyValue("--border").trim();
+  const surface = css.getPropertyValue("--surface").trim();
+  const axis = { gridcolor: grid, zerolinecolor: grid, linecolor: grid, automargin: true,
+                 tickfont: { color: muted, size: 11 }, title: { font: { color: muted, size: 11 } } };
   return {
     paper_bgcolor: "rgba(0,0,0,0)",
     plot_bgcolor: "rgba(0,0,0,0)",
-    font: { family: "system-ui, -apple-system, Segoe UI, sans-serif", color: text, size: 12 },
+    font: { family: "Inter, system-ui, -apple-system, Segoe UI, sans-serif", color: text, size: 12 },
     colorway: PALETTE,
     margin: { t: 30, b: 40, l: 50, r: 20 },
-    legend: { orientation: "h", y: 1.15 },
-    xaxis: { gridcolor: grid, zerolinecolor: grid, automargin: true },
-    yaxis: { gridcolor: grid, zerolinecolor: grid, automargin: true },
-    hoverlabel: { font: { family: "system-ui, sans-serif" } },
+    legend: { orientation: "h", y: 1.15, font: { color: muted, size: 11.5 } },
+    xaxis: axis,
+    yaxis: axis,
+    hoverlabel: { bgcolor: surface, bordercolor: grid, font: { family: "Inter, system-ui, sans-serif", color: text } },
   };
 }
 
