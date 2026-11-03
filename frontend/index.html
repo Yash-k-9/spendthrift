@@ -42,11 +42,25 @@
   </div>
 
   <div class="layout">
+    <div class="sidebar-shell">
     <aside class="sidebar" id="sidebar">
       <div class="brand">
         <h1>Family Budget</h1>
         <p class="muted">AI-based budget planner for savings · SDG 8 &amp; SDG 12</p>
       </div>
+
+      <nav class="side-nav" id="tabs" role="tablist" aria-label="Sections">
+        <button data-tab="dashboard" role="tab" data-title="Dashboard"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13h6V4H4zM14 20h6v-9h-6zM14 4v4h6V4zM4 20h6v-4H4z"/></svg><span>Dashboard</span></button>
+        <button data-tab="insights" role="tab" data-title="Insights"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-4-4"/></svg><span>Insights</span></button>
+        <button data-tab="predictions" role="tab" data-title="Predictions"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l5-5 4 3 8-8M15 7h5v5"/></svg><span>Predictions</span></button>
+        <button data-tab="patterns" role="tab" data-title="Patterns"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7m-2.5 0a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0M17 7m-2.5 0a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0M7 17m-2.5 0a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0M17 17m-2.5 0a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0"/></svg><span>Patterns</span></button>
+        <button data-tab="budgets" role="tab" data-title="Budgets"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9h-9zM15 3.5A9 9 0 0 1 20.5 9H15z"/></svg><span>Budgets</span></button>
+        <button data-tab="goals" role="tab" data-title="Goals &amp; Rewards"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0zM17 6h3a3 3 0 0 1-3 4M7 6H4a3 3 0 0 0 3 4"/></svg><span>Goals &amp; Rewards</span></button>
+        <button data-tab="add" role="tab" data-title="Add / Import"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Add / Import</span></button>
+        <button data-tab="transactions" role="tab" data-title="Transactions"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9"/></svg><span>Transactions</span></button>
+        <button data-tab="sms" role="tab" data-title="SMS &amp; Security"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6zM9 12l2 2 4-4"/></svg><span>SMS &amp; Security</span></button>
+        <button data-tab="models" role="tab" data-title="Models"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6M10 3v4l-5 9a3 3 0 0 0 3 5h8a3 3 0 0 0 3-5l-5-9V3"/></svg><span>Models</span></button>
+      </nav>
 
       <label class="field">
         <span>Month</span>
@@ -76,20 +90,10 @@
 
       <p class="side-note">All AI runs on this computer: six ML algorithms written from scratch. No API key needed.</p>
     </aside>
+    </div>
 
     <main class="main">
-      <nav class="tabs" id="tabs" role="tablist">
-        <button data-tab="dashboard" role="tab">Dashboard</button>
-        <button data-tab="insights" role="tab">Insights</button>
-        <button data-tab="predictions" role="tab">Predictions</button>
-        <button data-tab="patterns" role="tab">Patterns</button>
-        <button data-tab="budgets" role="tab">Budgets</button>
-        <button data-tab="goals" role="tab">Goals &amp; Rewards</button>
-        <button data-tab="add" role="tab">Add / Import</button>
-        <button data-tab="transactions" role="tab">Transactions</button>
-        <button data-tab="sms" role="tab">SMS &amp; Security</button>
-        <button data-tab="models" role="tab">Models</button>
-      </nav>
+      <header class="page-head"><h2 id="page-title">Dashboard</h2></header>
       <section id="view" class="view" aria-live="polite"></section>
     </main>
   </div>

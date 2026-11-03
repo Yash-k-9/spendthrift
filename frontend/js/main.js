@@ -13,6 +13,7 @@ import * as models from "./tabs/models.js";
 import * as sms from "./tabs/sms.js";
 import * as goals from "./tabs/goals.js";
 import { checkAlerts, startAlertWatcher } from "./notify.js";
+import "./sidebar.js";   // curved sidebar shape
 
 const TABS = { dashboard, insights, predictions, patterns, budgets, goals, add, transactions, sms, models };
 const NEEDS_DATA = new Set(["dashboard", "insights", "predictions", "patterns", "budgets"]);
@@ -50,6 +51,10 @@ async function render() {
   const token = ++renderToken;
   for (const btn of document.querySelectorAll("#tabs button")) {
     btn.setAttribute("aria-selected", String(btn.dataset.tab === tab));
+    if (btn.dataset.tab === tab) {
+      document.getElementById("page-title").textContent = btn.dataset.title;
+      document.title = `${btn.dataset.title} · Family Budget Planner`;
+    }
   }
   if (NEEDS_DATA.has(tab) && !state.month) {
     view.innerHTML = empty(`No transactions yet. Add some in <a href="#add">➕ Add / Import</a>,
