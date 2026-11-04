@@ -19,8 +19,11 @@
   animation: splash-out .5s ease 4s forwards;
 }
 @media (prefers-color-scheme: dark) {
-  .splash { background: radial-gradient(ellipse at 50% 42%, #1a2621 0%, #111815 50%, #0a0e0c 100%); }
+  :root:not([data-theme="light"]) .splash { background: radial-gradient(ellipse at 50% 42%, #1a2621 0%, #111815 50%, #0a0e0c 100%); }
 }
+/* the same, when dark is chosen with the theme switch in Settings */
+  :root[data-theme="dark"] .splash { background: radial-gradient(ellipse at 50% 42%, #1a2621 0%, #111815 50%, #0a0e0c 100%); }
+
 
 .splash-stage { position: relative; width: var(--note-w); height: var(--note-h); }
 

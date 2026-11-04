@@ -14,6 +14,7 @@ import * as sms from "./tabs/sms.js";
 import * as goals from "./tabs/goals.js";
 import { checkAlerts, startAlertWatcher } from "./notify.js";
 import "./sidebar.js";   // curved sidebar shape
+import { initThemeSwitch } from "./theme.js";
 
 const TABS = { dashboard, insights, predictions, patterns, budgets, goals, add, transactions, sms, models };
 const NEEDS_DATA = new Set(["dashboard", "insights", "predictions", "patterns", "budgets"]);
@@ -136,8 +137,9 @@ for (const btn of document.querySelectorAll("#tabs button")) {
   btn.addEventListener("click", () => { location.hash = btn.dataset.tab; });
 }
 window.addEventListener("hashchange", render);
-// Charts read their colours when drawn, so redraw when the system switches between light and dark.
-window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => render());
+// Charts read their colours when drawn, so redraw when the theme changes (switch or system setting).
+window.addEventListener("themechange", () => render());
+initThemeSwitch();
 
 startAlertWatcher();
 refresh().catch((err) => {
